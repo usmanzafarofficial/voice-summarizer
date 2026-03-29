@@ -20,52 +20,79 @@ const Projects = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchPlans() {
-      try {
-        const data = await getPlans();
-        setPlans(data);
-      } catch (err) {
-        console.error('Failed to fetch plans:', err);
-      } finally {
-        setLoading(false);
+    const hardcodedPlans = [
+      {
+        _id: 'plan_free',
+        name: 'Free Tier',
+        price: 0,
+        period: 'free',
+        features: [
+          '20 AI Voices/month',
+          '20 PDF Downloads/month',
+          '20 Summarization Edits',
+          'Basic Support',
+        ],
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        _id: 'plan_pro_monthly',
+        name: 'Pro',
+        price: 19,
+        period: 'monthly',
+        features: [
+          'Unlimited AI Voices',
+          'Unlimited PDF Downloads',
+          'Unlimited Summarizations',
+          'Priority Email Support',
+          'Advanced Formatting'
+        ],
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        _id: 'plan_lifetime',
+        name: 'Lifetime Access',
+        price: 149,
+        period: 'one-time',
+        features: [
+          'Everything in Pro',
+          'Pay once, use forever',
+          'Early access to new features',
+          '24/7 Dedicated Support',
+          'Commercial Usage Rights'
+        ],
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
-    }
-    fetchPlans();
+    ];
+    setPlans(hardcodedPlans as unknown as Plan[]);
+    setLoading(false);
   }, []);
 
   const handlePlanClick = async (plan: Plan) => {
-    if (!user || !token) {
-      sessionStorage.setItem('pendingPlanId', plan._id);
-      navigate('/?login=1');
-      return;
-    }
-
-    setProcessingPlanId(plan._id);
-    try {
-      const { url } = await createCheckout(plan._id, token);
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      alert(err instanceof Error ? err.message : 'Failed to start checkout. Please try again.');
-    } finally {
-      setProcessingPlanId(null);
-    }
+    alert("Pricing is currently in display-only mode. Subscriptions are not active yet!");
   };
 
   const formatPrice = (price: number, period: string) => {
+    if (period === 'free') {
+      return 'Free';
+    }
     if (period === 'one-time') {
       return `$${price}`;
     }
     if (period === 'monthly') {
-      return `$${price}/month`;
+      return `$${price}/mo`;
     }
-    return `$${price}/year`;
+    return `$${price}/yr`;
   };
 
   const getCtaText = (period: string) => {
-    if (period === 'one-time') return 'Get Started';
+    if (period === 'free') return 'Get Started Free';
+    if (period === 'one-time') return 'Get Lifetime';
     if (period === 'monthly') return 'Subscribe Monthly';
     return 'Subscribe Yearly';
   };
@@ -175,9 +202,18 @@ const Projects = () => {
             {plans.map((plan) => (
               <div
                 key={plan._id}
-                className="glass rounded-xl overflow-hidden hover:shadow-glow-primary transition-all duration-500 flex flex-col ring-2 ring-primary/50 shadow-glow-primary"
+                className={`glass relative rounded-xl overflow-hidden transition-all duration-500 flex flex-col ring-2 ${
+                  plan.period === 'monthly' 
+                    ? 'ring-primary shadow-glow-primary transform md:-translate-y-2 hover:-translate-y-4' 
+                    : 'ring-primary/40 shadow-glow-primary/30 hover:shadow-glow-primary'
+                }`}
               >
-                <div className="p-6 flex-1 flex flex-col">
+                {plan.period === 'monthly' && (
+                  <div className="absolute top-0 right-0 bg-gradient-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-bl-xl z-10 shadow-md">
+                    MOST POPULAR
+                  </div>
+                )}
+                <div className="p-6 flex-1 flex flex-col mt-2">
                   <h3 className="text-xl font-semibold text-foreground mb-1">
                     {plan.name}
                   </h3>
