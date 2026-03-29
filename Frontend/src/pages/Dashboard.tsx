@@ -14,7 +14,7 @@ import {
   updateRecordingWithSummary,
   type UsageData,
 } from "@/lib/api";
-import { Microphone, Square, CircleNotch, FilePdf, Pencil } from "phosphor-react";
+import { Microphone, Square, CircleNotch, FilePdf, Pencil, SpeakerHigh } from "phosphor-react";
 import jsPDF from "jspdf";
 
 // TypeScript types for Web Speech API
@@ -83,6 +83,7 @@ export default function Dashboard() {
   const [editedSummary, setEditedSummary] = useState("");
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [usageError, setUsageError] = useState<string | null>(null);
 
@@ -196,6 +197,59 @@ export default function Dashboard() {
       recordingIntervalRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    // Pre-load voices to ensure they are available immediately
+    const loadVoices = () => window.speechSynthesis.getVoices();
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const handleSpeak = () => {
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+    if (!summarizedText) return;
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(summarizedText);
+    
+    // Attempt to pick a more natural sounding Web Speech voice
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      const enVoices = voices.filter(v => v.lang.startsWith("en"));
+      // 1. Edge/Windows Online Natural voices are best
+      // 2. Google Cloud / standard Google voices are decent
+      // 3. Fallback to generic Female strings
+      const bestVoice = 
+        enVoices.find(v => v.name.includes("Natural") || v.name.includes("Online")) ||
+        enVoices.find(v => v.name.includes("Google") && v.name.includes("Female")) ||
+        enVoices.find(v => v.name.includes("Google") || v.name.includes("Samantha")) ||
+        enVoices.find(v => v.name.includes("Female"));
+        
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+      }
+    }
+    
+    // Slightly adjust rate and pitch to sound less robotic
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+
+    utterance.onend = () => setIsPlaying(false);
+    utterance.onerror = () => setIsPlaying(false);
+    
+    setIsPlaying(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const handleSummarize = async () => {
     if (!transcribedText.trim()) {
@@ -531,6 +585,19 @@ export default function Dashboard() {
                       Summarized Text
                     </label>
                     <div className="flex gap-2.5">
+                      <Button
+                        onClick={handleSpeak}
+                        variant="outline"
+                        size="sm"
+                        className="px-4 py-2 border-border/50 bg-background/50 hover:bg-gradient-to-r hover:from-primary/20 hover:to-accent/20 hover:border-primary/50 transition-all duration-300 text-foreground hover:text-primary hover:shadow-md group"
+                      >
+                        {isPlaying ? (
+                          <Square size={16} weight="fill" className="mr-2 group-hover:scale-110 transition-transform duration-300 text-destructive" />
+                        ) : (
+                          <SpeakerHigh size={16} weight="regular" className="mr-2 group-hover:scale-110 transition-transform duration-300" />
+                        )}
+                        {isPlaying ? "Stop" : "Listen"}
+                      </Button>
                       <Button
                         onClick={handleEditSummary}
                         variant="outline"
