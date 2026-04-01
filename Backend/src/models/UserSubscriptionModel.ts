@@ -13,6 +13,8 @@ export interface UserSubscription {
   amountPaid: number;
   currency: string;
   period: "one-time" | "monthly" | "yearly";
+  transactionId?: string;
+  paymentMethod?: string;
 }
 
 const userSubscriptionSchema = new Schema<UserSubscription>(
@@ -34,6 +36,8 @@ const userSubscriptionSchema = new Schema<UserSubscription>(
     amountPaid: { type: Number, required: true },
     currency: { type: String, required: true, default: "usd" },
     period: { type: String, required: true, enum: ["one-time", "monthly", "yearly"] },
+    transactionId: { type: String },
+    paymentMethod: { type: String },
   },
   { timestamps: true }
 );

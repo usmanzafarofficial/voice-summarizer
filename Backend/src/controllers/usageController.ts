@@ -10,11 +10,20 @@ export async function getUserUsage(req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Get active subscription
-    const subscription = await UserSubscriptionModel.findOne({
+    // Get active or completed subscription
+    let subscription = await UserSubscriptionModel.findOne({
       userId,
       status: { $in: ["active", "completed"] },
     }).sort({ createdAt: -1 });
+
+    let pendingSubscription = null;
+    if (!subscription) {
+      // If no active subscription, check for pending ones
+      pendingSubscription = await UserSubscriptionModel.findOne({
+        userId,
+        status: "pending",
+      }).sort({ createdAt: -1 });
+    }
 
     const now = new Date();
 
@@ -51,9 +60,10 @@ export async function getUserUsage(req: Request, res: Response, next: NextFuncti
           period: "free",
         },
         subscription: {
-          status: "free",
+          status: pendingSubscription ? "pending" : "free",
           startDate: usage.periodStart,
           endDate: null,
+          pendingPlanName: pendingSubscription?.planName,
         },
       });
     }

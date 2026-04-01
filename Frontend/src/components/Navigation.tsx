@@ -94,7 +94,7 @@ const Navigation = () => {
         duration: 0.5,
         ease: "power3.out"
       });
-      
+
       gsap.from(mobileMenuRef.current?.querySelectorAll('.menu-item') || [], {
         x: 50,
         opacity: 0,
@@ -200,7 +200,7 @@ const Navigation = () => {
       setLoginOpen(false);
       setLoginEmail('');
       setLoginPassword('');
-      
+
       if (pendingPlanId) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         const newToken = localStorage.getItem('voice_token');
@@ -246,7 +246,7 @@ const Navigation = () => {
       setSignName('');
       setSignEmail('');
       setSignPassword('');
-      
+
       if (pendingPlanId) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         const newToken = localStorage.getItem('voice_token');
@@ -306,8 +306,8 @@ const Navigation = () => {
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
-                    align="end" 
+                  <DropdownMenuContent
+                    align="end"
                     className="w-56 border-border bg-card/95 backdrop-blur-lg shadow-2xl mt-3 rounded-xl overflow-hidden border-2 border-primary/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
                     sideOffset={12}
                     ref={dropdownContentRef}
@@ -413,7 +413,7 @@ const Navigation = () => {
             <X size={24} />
           </button>
         </div>
-        
+
         <div className="flex flex-col space-y-6 p-6 mt-8">
           {isDashboard && (
             <Link
@@ -529,8 +529,8 @@ const Navigation = () => {
         </div>
       </div>
 
-      <Dialog open={loginOpen} onOpenChange={(open) => { 
-        setLoginOpen(open); 
+      <Dialog open={loginOpen} onOpenChange={(open) => {
+        setLoginOpen(open);
         if (!open) {
           setLoginTab('login');
           setError(null);

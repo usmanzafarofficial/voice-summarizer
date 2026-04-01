@@ -59,7 +59,7 @@ export interface Plan {
   name: string;
   price: number;
   currency: string;
-  period: "one-time" | "monthly" | "yearly";
+  period: "one-time" | "monthly" | "yearly" | "free";
   features: string[];
   displayOrder: number;
 }
@@ -351,4 +351,21 @@ export async function updateRecordingWithSummary(
     body: JSON.stringify({ transcribedText, summarizedText }),
   });
   return handleResponse<UserRecording>(response);
+}
+
+export async function submitManualPayment(
+  planId: string,
+  transactionId: string,
+  paymentMethod: "easypaisa" | "jazzcash",
+  token: string
+): Promise<{ message: string; subscription: UserSubscription }> {
+  const response = await fetch(`${API_BASE_URL}/api/subscriptions/manual`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ planId, transactionId, paymentMethod }),
+  });
+  return handleResponse<{ message: string; subscription: UserSubscription }>(response);
 }

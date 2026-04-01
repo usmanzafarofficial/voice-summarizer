@@ -13,6 +13,12 @@ const confirmCheckoutSchema = z.object({
   sessionId: z.string(),
 });
 
+const submitManualPaymentSchema = z.object({
+  planId: z.string(),
+  transactionId: z.string().min(1),
+  paymentMethod: z.enum(["easypaisa", "jazzcash"]),
+});
+
 export async function createCheckout(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = (req as any).userId;
@@ -151,6 +157,47 @@ export async function getUserSubscriptions(req: Request, res: Response, next: Ne
       .sort({ createdAt: -1 })
       .lean();
     res.json(subscriptions);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitManualPayment(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { planId, transactionId, paymentMethod } = submitManualPaymentSchema.parse(req.body);
+    const plan = await PlanModel.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    // Check if there is already a pending transaction with the same ID
+    const existing = await UserSubscriptionModel.findOne({ transactionId });
+    if (existing) {
+       return res.status(400).json({ error: "This Transaction ID has already been submitted." });
+    }
+
+    const subscriptionDoc = await UserSubscriptionModel.create({
+      userId,
+      planId,
+      planName: plan.name,
+      status: "pending",
+      startDate: new Date(),
+      amountPaid: plan.price,
+      currency: plan.currency || "usd",
+      period: plan.period,
+      transactionId,
+      paymentMethod,
+    });
+
+    return res.json({
+      message: "Payment submitted successfully. You will be upgraded after the payment verification.",
+      subscription: subscriptionDoc,
+    });
   } catch (err) {
     next(err);
   }

@@ -2,9 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Check } from 'phosphor-react';
+import { Check, CreditCard, Wallet } from 'phosphor-react';
 import { Button } from './ui/button';
-import { getPlans, createCheckout, type Plan } from '../lib/api';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import { getPlans, createCheckout, submitManualPayment, type Plan } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -15,9 +25,14 @@ const Projects = () => {
   const titleRef = useRef<HTMLDivElement>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const { user, token } = useAuth();
   const navigate = useNavigate();
+
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'easypaisa' | 'jazzcash'>('easypaisa');
+  const [transactionId, setTransactionId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const hardcodedPlans = [
@@ -74,7 +89,42 @@ const Projects = () => {
   }, []);
 
   const handlePlanClick = async (plan: Plan) => {
-    alert("Pricing is currently in display-only mode. Subscriptions are not active yet!");
+    if (!token) {
+      navigate('/?login=1');
+      return;
+    }
+
+    if (plan.period === 'free') {
+      navigate('/dashboard');
+      return;
+    }
+
+    // For paid plans, show manual payment modal
+    setSelectedPlan(plan);
+    setPaymentModalOpen(true);
+  };
+
+  const handleManualPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPlan || !token) return;
+
+    if (!transactionId.trim()) {
+      alert("Please enter a Transaction ID");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await submitManualPayment(selectedPlan._id, transactionId, paymentMethod, token);
+      alert("Payment submitted successfully. You will be upgraded after the payment verification.");
+      setPaymentModalOpen(false);
+      setTransactionId('');
+      setSelectedPlan(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to submit payment. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatPrice = (price: number, period: string) => {
@@ -92,16 +142,14 @@ const Projects = () => {
 
   const getCtaText = (period: string) => {
     if (period === 'free') return 'Get Started Free';
-    if (period === 'one-time') return 'Get Lifetime';
-    if (period === 'monthly') return 'Subscribe Monthly';
-    return 'Subscribe Yearly';
+    return 'Coming Soon';
   };
 
   useEffect(() => {
     if (plans.length === 0) return;
-    
+
     let fallbackTimeout: NodeJS.Timeout;
-    
+
     const ctx = gsap.context(() => {
       gsap.from(titleRef.current?.children || [], {
         y: 50,
@@ -202,11 +250,10 @@ const Projects = () => {
             {plans.map((plan) => (
               <div
                 key={plan._id}
-                className={`glass relative rounded-xl overflow-hidden transition-all duration-500 flex flex-col ring-2 ${
-                  plan.period === 'monthly' 
-                    ? 'ring-primary shadow-glow-primary transform md:-translate-y-2 hover:-translate-y-4' 
+                className={`glass relative rounded-xl overflow-hidden transition-all duration-500 flex flex-col ring-2 ${plan.period === 'monthly'
+                    ? 'ring-primary shadow-glow-primary transform md:-translate-y-2 hover:-translate-y-4'
                     : 'ring-primary/40 shadow-glow-primary/30 hover:shadow-glow-primary'
-                }`}
+                  }`}
               >
                 {plan.period === 'monthly' && (
                   <div className="absolute top-0 right-0 bg-gradient-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-bl-xl z-10 shadow-md">
@@ -232,10 +279,13 @@ const Projects = () => {
                   </ul>
                   <Button
                     onClick={() => handlePlanClick(plan)}
-                    disabled={processingPlanId === plan._id}
-                    className="mt-6 w-full bg-gradient-primary text-primary-foreground hover:shadow-glow-primary"
+                    disabled={(isSubmitting && selectedPlan?._id === plan._id) || plan.period !== 'free'}
+                    className={`mt-6 w-full ${plan.period !== 'free' 
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                      : 'bg-gradient-primary text-primary-foreground hover:shadow-glow-primary'
+                    }`}
                   >
-                    {processingPlanId === plan._id ? 'Processing...' : getCtaText(plan.period)}
+                    {isSubmitting && selectedPlan?._id === plan._id ? 'Processing...' : getCtaText(plan.period)}
                   </Button>
                 </div>
               </div>
@@ -243,6 +293,95 @@ const Projects = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+        <DialogContent className="glass border-border/50 max-w-md w-[95vw]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-light text-primary-glow">Complete Payment</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Please transfer the amount to one of our accounts and provide the Transaction ID below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleManualPaymentSubmit} className="space-y-6 pt-4">
+            <div className="space-y-4">
+              <Label className="text-base">Select Payment Method</Label>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(v) => setPaymentMethod(v as 'easypaisa' | 'jazzcash')}
+                className="grid grid-cols-2 gap-4"
+              >
+                <div>
+                  <RadioGroupItem value="easypaisa" id="easypaisa" className="peer sr-only" />
+                  <Label
+                    htmlFor="easypaisa"
+                    className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card/20 p-4 hover:bg-card/40 peer-data-[state=checked]:border-primary transition-all cursor-pointer"
+                  >
+                    <Wallet size={24} className="mb-2 text-primary" />
+                    <span className="text-sm font-medium">Easypaisa</span>
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value="jazzcash" id="jazzcash" className="peer sr-only" />
+                  <Label
+                    htmlFor="jazzcash"
+                    className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card/20 p-4 hover:bg-card/40 peer-data-[state=checked]:border-primary transition-all cursor-pointer"
+                  >
+                    <CreditCard size={24} className="mb-2 text-primary" />
+                    <span className="text-sm font-medium">JazzCash</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Account Name:</span>
+                <span className="font-semibold text-foreground">
+                  {paymentMethod === 'easypaisa' ? 'Voice Summarizer' : 'Usman Zafar'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Account Number:</span>
+                <span className="font-mono font-bold text-primary-glow tracking-wider">
+                  {paymentMethod === 'easypaisa' ? '0300-1234567' : '0300-7654321'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm pt-2 border-t border-primary/10">
+                <span className="text-muted-foreground">Payable Amount:</span>
+                <span className="text-lg font-bold text-primary-glow">
+                  {selectedPlan ? formatPrice(selectedPlan.price, selectedPlan.period) : ''}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transactionId">Transaction ID</Label>
+              <Input
+                id="transactionId"
+                placeholder="Enter 11-digit Transaction ID"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                required
+                className="bg-background/50 border-border focus:border-primary"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-primary text-primary-foreground py-6 text-lg hover:shadow-glow-primary transition-all duration-300"
+            >
+              {isSubmitting ? 'Verifying...' : 'Submit Payment Details'}
+            </Button>
+            
+            <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1.5 pt-2">
+              <Check size={14} className="text-primary" /> 
+              You will be upgraded after manual verification.
+            </p>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="absolute top-1/4 left-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl -translate-x-1/2" />
       <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2" />
