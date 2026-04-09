@@ -2,6 +2,11 @@
   "candidates": [
     {
       "content": {
+        "parts": [
+          {
+            "text": "Please"
+          }
+        ],
         "role": "model"
       },
       "finishReason": "MAX_TOKENS",
@@ -10,6 +15,7 @@
   ],
   "usageMetadata": {
     "promptTokenCount": 6,
+    "candidatesTokenCount": 1,
     "totalTokenCount": 52,
     "promptTokensDetails": [
       {
@@ -17,8 +23,8 @@
         "tokenCount": 6
       }
     ],
-    "thoughtsTokenCount": 46
+    "thoughtsTokenCount": 45
   },
   "modelVersion": "gemini-2.5-flash",
-  "responseId": "xo7HadS1A4fhnsEPnvLs0Qg"
+  "responseId": "ZEfXab3xAuWu4-EPz_3LWQ"
 }
